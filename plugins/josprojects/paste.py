@@ -14,7 +14,7 @@ from SafoneAPI import SafoneAPI
 
 Safone = SafoneAPI()
 
-from functions.http import post as send
+from plugins.josprojects.help_func.http import post as send
 
 BASE = "https://batbin.me/"
     

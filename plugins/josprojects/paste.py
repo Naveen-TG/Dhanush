@@ -1,74 +1,102 @@
-#A new Pastebin Plugin 🔥
-# Credits to Cat
-
+from requests import post, get
 import os
-import re
-import json
-import aiohttp
-import requests
+import aiofiles
+import requests 
+import socket
+from asyncio import get_running_loop
+from functools import partial
+from info import ADMINS as dev_user
+from pyrogram import filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+from pyrogram.types import Message
+from pyrogram import Client as bot
+from SafoneAPI import SafoneAPI
 
-from pyrogram import Client, filters
+Safone = SafoneAPI()
 
+from functions.http import post as send
 
-#Headers
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.104 Safari/537.36",
-    "content-type": "application/json",
-}
-
-#Pastebins
-async def p_paste(message, extension=None):
-    siteurl = "https://pasty.lus.pm/api/v1/pastes"
-    data = {"content": message}
-    try:
-        response = requests.post(url=siteurl, data=json.dumps(data), headers=headers)
-    except Exception as e:
-        return {"error": str(e)}
-    if response.ok:
-        response = response.json()
-        purl = (
-            f"https://pasty.lus.pm/{response['id']}.{extension}"
-            if extension
-            else f"https://pasty.lus.pm/{response['id']}.txt"
-        )
-        return {
-            "url": purl,
-            "raw": f"https://pasty.lus.pm/{response['id']}/raw",
-            "bin": "Pasty",
-        }
-    return {"error": "Unable to reach pasty.lus.pm"}
-
-
-
-
+BASE = "https://batbin.me/"
     
+      
+def spacebin(text):
+    url = "https://spaceb.in/api/v1/documents/"
+    res = post(url, data={"content": text, "extension": "txt"})
+    return f"https://spaceb.in/{res.json()['payload']['id']}"
+
+
+def _netcat(host, port, content):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+    s.sendall(content.encode())
+    s.shutdown(socket.SHUT_WR)
+    while True:
+        data = s.recv(4096).decode("utf-8").strip("\n\x00")
+        if not data:
+            break
+        return data
+    s.close()
     
-@Client.on_message(filters.command(["tgpaste", "pasty", "paste"]))
-async def pasty(client, message):
-    pablo = await message.reply_text("`Please wait...`")
-    tex_t = message.text
-    message_s = tex_t
-    if not tex_t:
-        if not message.reply_to_message:
-            await pablo.edit("`Only text and documents are supported.`")
-            return
-        if not message.reply_to_message.text:
-            file = await message.reply_to_message.download()
-            m_list = open(file, "r").read()
-            message_s = m_list
-            os.remove(file)
-        elif message.reply_to_message.text:
-            message_s = message.reply_to_message.text
+async def ezup(content):
+    loop = get_running_loop()
+    link = await loop.run_in_executor(
+        None, partial(_netcat, "ezup.dev", 9999, content)
+    )
+    return link
+
+
+@bot.on_message(filters.command("batbin"))
+async def pastebin(_, m):
+          if m.reply_to_message:
+              content = m.reply_to_message.text or m.reply_to_message.caption
+              
+              button = [[ InlineKeyboardButton(text="BATBIN", url=link)]]
+              await m.reply_photo(photo=link,caption=link,reply_markup=InlineKeyboardMarkup(button))
+
+
+@bot.on_message(filters.command('paste'))
+async def paste(_, m):
+ try:
+    reply = m.reply_to_message
+    if not reply:
+           await m.reply_text("Reply to Message or Text-File")
+    if reply.document:
+        doc = await m.reply_to_message.download()
+        async with aiofiles.open(doc, mode="r") as f:
+          file_text = await f.read()
+        os.remove(doc)
+        msg = await m.reply("**Starting to Paste All**")
+        spacebin_url = spacebin(file_text)
+        safone_url = await Safone.paste(file_text)
+        
+        ezup_link = await ezup(file_text)
+        resp = await send(f"{BASE}api/v2/paste", data=file_text)
+        code = resp["message"]
+        bat_link = f"{BASE}{code}"
+        await msg.edit("**Process Completed**")                  
+        caption = f"Here is the Paste Hubs of @Dhanush_TG_BoT"
+        await m.reply_photo(photo=bat_link,caption=caption,
+                      reply_markup=InlineKeyboardMarkup(
+                          [[InlineKeyboardButton(text="BATBIN", url=bat_link),InlineKeyboardButton("SPACEBIN", url=spacebin_url),
+                         ],[ InlineKeyboardButton("EZUPBIN", url=ezup_link),InlineKeyboardButton(text="SIZUKI", url=safone_url.link),]]))
+    elif reply.text or reply.caption:
+          text = reply.text or reply.caption
+          msg = await m.reply("**Starting to Past All**")                
+          spacebin_url = spacebin(text)
+          link = await ezup(text)
+          safone_url = await Safone.paste(text)
+          resp = await send(f"{BASE}api/v2/paste", data=text)
+          code = resp["message"]
+          bat_link = f"{BASE}{code}"
+          await msg.edit("**Process Completed**")                 
+          caption = f"Here are the Paste Webs of Requested Paste"
+          await m.reply_photo(photo=bat_link,caption=caption,
+                      reply_markup=InlineKeyboardMarkup(
+                          [[InlineKeyboardButton(text="BATBIN", url=bat_link),],[InlineKeyboardButton(text="SIZUKI", url=safone_url.link), ],[ InlineKeyboardButton("SPACEBIN", url=spacebin_url),
+                           ],[ InlineKeyboardButton("EZUP.DEV", url=link)]]))
     
-    ext = "py"
-    x = await p_paste(message_s, ext)
-    p_link = x["url"]
-    p_raw = x["raw"]
-    
-    pasted = f"**Successfully Paste to Pasty**\n\n**Link:** • [Click here]({p_link})\n\n**Raw Link:** • [Click here]({p_raw})"
-    await pablo.edit(pasted, disable_web_page_preview=True)
+        
+        
 
-
-
-
-
+ except Exception as e:
+       await m.reply(f"**ERROR**: {e}")

@@ -26,6 +26,7 @@ pillow
 pykeyboard
 speedtest-cli
 pyromod
+SafoneAPI
 aiohttpsession
 aiohttp
 aiofiles

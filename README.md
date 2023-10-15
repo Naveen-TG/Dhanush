@@ -1,3 +1,3 @@
 # Dhanush TG BoT
 
-* [![DEMO-LINK](https://img.shields.io/static/v1?label=Deno=blue)](https://telegram.dog/EvaMariaDevs)
+(https://img.shields.io/badge/Watch%20Now-blue)](https://www.youtube.com/watch?v=0wAV7pUzhDQ)
